@@ -12,21 +12,34 @@ export default NextAuth({
       scope: 'read:user'
     }),
   ],
-  jwt: {
-    signingKey: process.env.SIGNIN_KEY
-  },
   callbacks: {
     async signIn(user, account, profile) {
       const { email } = user;
       try {
         await fauna.query(
-          queryFauna.Create(
-            queryFauna.Collections('users'),
-            {
-              data: {
-                email
-              } 
-            }
+          queryFauna.If(
+            queryFauna.Not(
+              queryFauna.Exists(
+                queryFauna.Match(
+                  queryFauna.Index('user_by_email'),
+                  queryFauna.Casefold(user.email)
+                )
+              )
+            ),
+            queryFauna.Create(
+              queryFauna.Collections('users'),
+              {
+                data: {
+                  email
+                } 
+              }
+            ),
+            queryFauna.Get(
+              queryFauna.Match(
+                queryFauna.Index('user_by_email'),
+                queryFauna.Casefold(user.email)
+              )
+            )
           )
         )
 
