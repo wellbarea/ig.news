@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { query as q } from 'faunadb'
 import { getSession } from 'next-auth/client'
-import { fauna } from "../../services/fauna";
+import { fauna } from '../../services/fauna';
 import { stripe } from "../../services/stripe";
 
 type User = {
@@ -13,10 +13,10 @@ type User = {
   }
 }
 
-export default async (req: NextApiRequest, res: NextApiResponse) => {
+export const FaunaSubscribe = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === 'POST') {
     const session = await getSession({ req })
-
+    
     const user = await fauna.query<User>(
       q.Get(
         q.Match(
@@ -26,13 +26,13 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
       )
     )
 
-    let customerId = user.data.stripe_customer_id
+    let customerId = user.data.stripe_customer_id;
 
     if (!customerId) {
       const stripeCustomer = await stripe.customers.create({
         email: session.user.email,
       })
-
+  
       await fauna.query(
         q.Update(
           q.Ref(q.Collection('users'), user.ref.id),
@@ -46,9 +46,9 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 
       customerId = stripeCustomer.id
     }
-
+ 
     const stripeCheckoutSession = await stripe.checkout.sessions.create({
-      customer: customerId, //criando cliente no stripe
+      customer: customerId,
       payment_method_types: ['card'],
       billing_address_collection: 'required',
       line_items: [
@@ -66,3 +66,5 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     res.status(405).end('Method not allowed')
   }
 }
+
+export default FaunaSubscribe;
